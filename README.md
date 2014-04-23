@@ -12,3 +12,7 @@ Installation
 Demo
 -----
 http://carera.own.cz/ark/
+
+Misc
+----
+Based on [static website skeleton](https://github.com/PavelVanecek/static-skeleton)
