@@ -7,6 +7,7 @@ Installation
     cd ark
     rm -rf .git
     npm install
+    bower install
 
 Demo
 -----
