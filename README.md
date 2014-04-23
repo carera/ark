@@ -8,3 +8,6 @@ Installation
     rm -rf .git
     npm install
 
+Demo
+-----
+http://carera.own.cz/ark/
