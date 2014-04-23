@@ -1,0 +1,20 @@
+doctype html
+html
+  head
+    meta(charset='utf-8')
+    meta(http-equiv='Content-type', content='text/html;charset=UTF-8')
+    // build:css css/minified.css
+    link(rel='stylesheet', href='../css/styles.css')
+    // endbuild
+  body
+
+    div#canvas
+
+    // build:js js/app.min.js
+    script(src="../bower_components/jquery/dist/jquery.js")
+    script(src="../js/app.js")
+    // endbuild
+
+    // @exclude
+    script(src="http://localhost:35729/livereload.js")
+    // @endexclude
