@@ -27,7 +27,7 @@ interval = 10
 paddle_offset = 30
 paddle_width = 100
 ball_radius = 5
-drop_chance = 0.5
+drop_chance = 0.2
 
 class Ball 
   constructor: (x,y,dx,dy) ->
@@ -236,7 +236,7 @@ class Game
 
   eatBonus: (id) ->
     @removeBonus(id)
-    r = parseInt(Math.random()*4)
+    r = parseInt(Math.random()*5)
     switch r
       when 0 then @paddle.setLength(@paddle.size.x+10)
       when 1 then @paddle.setLength(@paddle.size.x-10)
