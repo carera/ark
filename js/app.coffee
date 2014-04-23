@@ -1,8 +1,5 @@
 class Vector 
-  constructor: (x, y) ->
-    @x = x
-    @y = y
-    return
+  constructor: (@x, @y) ->
 
   plus: (other) ->
     new Vector(@x + other.x, @y + other.y)
@@ -21,13 +18,13 @@ class Vector
     new Vector(@x/length, @y/length)
 
 gravity = new Vector(0, 9.81)
-ball_speed = 0.4
-max_angle = 3.14/3
-interval = 10
-paddle_offset = 30
-paddle_width = 100
-ball_radius = 5
-drop_chance = 0.2
+ball_speed =     0.4
+max_angle =      3.14/3
+interval =       10
+paddle_offset =  30
+paddle_width =   100
+ball_radius =    5
+drop_chance =    1.0
 
 class Ball 
   constructor: (x,y,dx,dy) ->
@@ -236,7 +233,7 @@ class Game
 
   eatBonus: (id) ->
     @removeBonus(id)
-    r = parseInt(Math.random()*5)
+    r = 4#parseInt(Math.random()*5)
     switch r
       when 0 then @paddle.setLength(@paddle.size.x+10)
       when 1 then @paddle.setLength(@paddle.size.x-10)
