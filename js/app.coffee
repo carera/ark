@@ -17,36 +17,55 @@ class Vector
     length = @length()
     new Vector(@x/length, @y/length)
 
-gravity = new Vector(0, 9.81)
+gravity = new Vector(0, 3)
+min_speed =      0.4
+max_speed =      0.8
 ball_speed =     0.4
+paddle_max_size = 250
+paddle_min_size = 50
 max_angle =      3.14/3
-interval =       10
+interval =       5
 paddle_offset =  30
 paddle_width =   100
-ball_radius =    5
-drop_chance =    0.3
+ball_radius =    6
+min_ball_radius = 3
+max_ball_radius = 12
+drop_chance =    1
+text_life =      2000
 
-class Ball 
-  constructor: (x,y,dx,dy) ->
-    @handle = $("<div>").addClass("ball").appendTo("#canvas")
-    @setPosition(x,y)
-    @setRadius(ball_radius)
+class Entity
+  constructor: (x=0, y=0, dx=0, dy=0) ->
+    @handle = $("<div>").appendTo("#canvas")
+    @setPosition(new Vector(x,y))
     @velocity = new Vector(dx,dy)
-    @velocity = @velocity.normalize().scale(ball_speed)
-    return
+    @birth = new Date().getTime()
+
+  setPosition: (@position) ->
+    @handle.css
+      left: @position.x
+      top: @position.y
 
   remove: ->
     @handle.remove()
-    return
 
-  setPosition: (x,y) ->
-    @position = new Vector(x,y)
+  move: ->
+    newPos = @position.plus(@velocity)
+    @setPosition(newPos)
+
+
+class Ball extends Entity 
+  constructor: (x,y,dx,dy) ->
+    super(x,y,dx,dy)
+    @setRadius(ball_radius)
+    @handle.addClass("ball")
+    @velocity = @velocity.normalize().scale(ball_speed)
+
+  setPosition: (@position) ->
     @handle.css
-      top: y-@radius
-      left: x-@radius
+      top: @position.y-@radius
+      left: @position.x-@radius
 
-  setRadius: (radius) ->
-    @radius = radius
+  setRadius: (@radius) ->
     @handle.css
       width: @radius*2
       height: @radius*2
@@ -55,21 +74,17 @@ class Ball
   setSpeed: (speed) ->
     @velocity = @velocity.normalize().scale(speed)
 
-  remove: ->
-    @handle.remove()
-
-  move: (ms, game, id) ->
-    # update position
-    @position = @position.plus(@velocity)
-
+  move: (ms, game, id) ->    
     # collision detection against world
     #top
     if @position.y <= @radius 
       @velocity.y = Math.abs(@velocity.y)
     #bottom
     else if @position.y >= game.world.y2 - @radius
-      game.removeBall(id)
-      @velocity.y = -Math.abs(@velocity.y);
+      if game.immune
+        @velocity.y = -Math.abs(@velocity.y);
+      else
+        game.removeBall(id)
     #left
     if @position.x <= @radius 
       @velocity.x = Math.abs(@velocity.x);
@@ -88,13 +103,13 @@ class Ball
       if pt.x > right 
         pt.x = right
         change.x = -1
-      if pt.x < left
+      else if pt.x < left
         pt.x = left
         change.x = -1
       if pt.y > bottom
         pt.y = bottom
         change.y = -1
-      if pt.y < top
+      else if pt.y < top
         pt.y = top
         change.y = -1
       pt = @position.minus(pt)
@@ -120,27 +135,20 @@ class Ball
 
     @velocity = @velocity.normalize().scale(ball_speed*ms)
     # render
-    @handle.css
-      left: @position.x-@radius
-      top: @position.y-@radius
-    return
+    super
 
-class Paddle
+class Paddle extends Entity
   constructor: (game) ->
     @size = new Vector(paddle_width,20)
-    @handle = $("<div>").addClass("paddle").appendTo("#canvas")
-    @setPosition(game.world.x2/2-@size.x/2, game.world.y2-paddle_offset)
+    super(game.world.x2/2-@size.x/2, game.world.y2-paddle_offset)
+    @handle.addClass("paddle")
     @handle.css
       width: @size.x
       height: @size.y
-    return
-  setPosition: (x,y) ->
-    @position = new Vector(x,y)
-    @handle.css
-      left: @position.x
-      top: @position.y
 
   setLength: (x) ->
+    x = if x > paddle_max_size then paddle_max_size else x
+    x = if x < paddle_min_size then paddle_min_size else x
     @size.x = x
     @handle.css
       width: x
@@ -150,29 +158,23 @@ class Paddle
       left: to-@size.x/2
     @position.x = to
 
-class Brick
-  constructor: (x,y,id) ->
-    @id = id
-    @position = new Vector(x,y)
+class Brick extends Entity
+
+  constructor: (x,y) ->
+    super(x,y)
     @size = new Vector(80,20)
-    @handle = $("<div>").addClass("brick").appendTo("#canvas")
+    @handle.addClass("brick")
     @handle.css
       width: @size.x
       height: @size.y
       left: @position.x-@size.x/2
       top: @position.y-@size.y/2
 
-  remove: ->
-    @handle.remove()
+class Bonus extends Entity
 
-class Bonus
   constructor: (x,y) ->
-    @position = new Vector(x,y)
-    @velocity = new Vector(0, -1.0)
-    @handle = $("<div>").addClass("bonus").appendTo("#canvas")
-    @handle.css
-      left: @position.x
-      top: @position.y
+    super(x,y,0,-0.5)
+    @handle.addClass("bonus")
 
   move: (ms, game, id) ->
     @velocity = @velocity.plus(gravity.scale(0.01))
@@ -187,41 +189,46 @@ class Bonus
         game.removeBonus(id)
 
     return
-  remove: ->
-    @handle.remove()
+
+class Text extends Entity
+  constructor: (x,y,@text) ->
+    super(x,y,0,-.1)
+    @handle.addClass("bonus_text").html(@text).fadeOut(text_life)
 
 class Game
   constructor: ->
+    @immune = false
     @running = false
     @canvas = $("#canvas")
     @world =
       x1: 0
       y1: 0
-      x2: 500
-      y2: 300
+      x2: 740
+      y2: 500
     @redraw()
     @lastTime = new Date()
     @balls = []
     @bricks = []
     @bonuses = []
+    @bonus_texts = []
     @paddle = new Paddle(this)
     @balls.push new Ball(@paddle.position.x, @paddle.position.y-@paddle.size.y, 2, -5)
 
-    for i in [0..5]
-      for j in [0..5]
-        @bricks.push new Brick(83*i+42, 22*j+24)
+    for i in [0..8]
+      for j in [0..10]
+        @bricks.push new Brick(82*i+42, 22*j+12)
 
     $(document).mousemove (event) => 
       @paddle.move(event.pageX-@canvas.offset().left)
       if(!@running)
         @balls.forEach (ball) =>
-          ball.setPosition(event.pageX+10-@canvas.offset().left, @paddle.position.y-@paddle.size.y/2+ball_radius)
+          pos = new Vector(event.pageX+10-@canvas.offset().left, @paddle.position.y-ball_radius)
+          ball.setPosition(pos)
           return
 
     $(window).resize(=>
       @redraw()
       @paddle.setPosition(@paddle.position.x, @world.y2-paddle_offset)
-      return
     )
 
   dropBonus: (x,y) ->
@@ -233,16 +240,47 @@ class Game
 
   eatBonus: (id) ->
     @removeBonus(id)
-    r = parseInt(Math.random()*5)
+    r = parseInt(Math.random()*8)
     switch r
-      when 0 then @paddle.setLength(@paddle.size.x+10)
-      when 1 then @paddle.setLength(@paddle.size.x-10)
-      when 2 then ball_speed += .1
-      when 3 then ball_speed -= .1
+      when 0 
+        @paddle.setLength(@paddle.size.x+10)
+        msg = "+ paddle size"
+      when 1 
+        @paddle.setLength(@paddle.size.x-10)
+        msg = "- paddle size"
+      when 2 
+        ball_speed = if ball_speed < max_speed then ball_speed + 0.1 else ball_speed
+        msg = "+ ball speed"
+      when 3 
+        ball_speed = if ball_speed > min_speed then ball_speed - 0.1 else ball_speed
+        msg = "- ball speed"
       when 4
         @balls.forEach (ball) =>
-          @balls.push new Ball(ball.position.x, ball.position.y, -ball.velocity.x, ball.velocity.y)
-    return
+          @balls.push new Ball(ball.position.x, ball.position.y, -ball.velocity.x, -Math.abs(ball.velocity.y))
+        msg = "double ball"
+      when 5
+        ball_radius += 2
+        ball_radius = if ball_radius > max_ball_radius then max_ball_radius else ball_radius
+        @balls.forEach (ball) =>
+          ball.setRadius(ball_radius)
+        msg = "+ ball size"
+      when 6
+        ball_radius -= 2
+        ball_radius = if ball_radius < min_ball_radius then min_ball_radius else ball_radius
+        @balls.forEach (ball) =>
+          ball.setRadius(ball_radius)
+        msg = "- ball size"
+      when 7
+        @immune = true
+        @canvas.css
+          "border-bottom": "3px solid blue"
+        msg = "shield"
+        setTimeout (=>
+          @immune = false
+          @canvas.css
+            "border-bottom": "1px solid grey"
+        ), 6000
+    @bonus_texts.push new Text(@paddle.position.x,@paddle.position.y-30,msg)
 
   removeBrick: (id) ->
     if Math.random() < drop_chance
@@ -269,16 +307,19 @@ class Game
     @lastTime = new Date()
     @loop = setInterval (=>
 
-      currTime = new Date()
-      milis = currTime.getTime() - @lastTime.getTime();
-      @lastTime = currTime
+      curTime = new Date()
+      milis = curTime.getTime() - @lastTime.getTime();
+      @lastTime = curTime
 
       @balls.forEach (ball, id) =>
         ball.move(milis, this, id)
-        return
       @bonuses.forEach (bonus, id) =>
         bonus.move(milis, this, id)
-        return
+      @bonus_texts.forEach (text, id) =>
+        text.move()
+        if(new Date().getTime() - text.birth > text_life)
+          text.remove()
+          @bonus_texts.splice(id,1)
       if @balls.length == 0
         @stop()
         alert("YOU LOSE")
@@ -296,4 +337,9 @@ game = new Game()
 $(document).on("click","#canvas", =>
   if(!game.running)
     game.start()
+)
+
+$(document).on("keypress","#canvas", =>
+  if(game.running)
+    game.stop()
 )
